@@ -5,7 +5,7 @@ author:
     - Paul von Hirschhausen (01453360)
     - az. Prof.in Dr.in Claudia Wutscher (Supervisor - WU Vienna)
     - Univ.Ass. Dr. Gábor Recski (Co-Supervisor - TU Vienna)
-date: "12.02.2025"
+date: "27.02.2025"
 bibliography: [resources/resources.bib]
 csl: resources/apa.csl
 geometry:
@@ -18,15 +18,15 @@ fontsize: 12pt
 # linestretch: 1.5
 # pagestyle: plain
 output: pdf_document
-# cmd to create pdf: pandoc --filter pandoc-citeproc -o proposal.pdf proposal.md
-# ^[01453360@student.tuwien.ac.at]
+# cmd to create pdf: pandoc --citeproc -o proposal.pdf proposal.md
+# ^[e1453360@student.tuwien.ac.at]
 # ^[claudia.wutscher@wu.ac.at]
 # ^[gabor.recski@tuwien.ac.at]
 ---
 
 ## Abstract
 
-This interdisciplinary project analyzes the European Central Bank's communication strategy through the lens of both legal technology and data science. Building on preparatory work completed during the "Fachseminar Legal Tech" at the WU Vienna, the project represents a collaboration with the WU Legal Tech Center. It employs state-of-the-art natural language processing techniques, specifically the BERTopic model, to analyze temporal patterns and thematic evolution in ECB's communication across different channels, with a particular focus on climate change and environmental concerns. The project combines advanced topic modeling with time series analysis to provide insights that bridge the gap between quantitative analysis of central bank communication and legal research. By analyzing both traditional press releases and blog articles, this research aims to contribute to the understanding of how the ECB's communication evolves across different platforms and time periods. The findings will serve as a valuable resource for ongoing legal research, particularly in relation to EU regulation commentary. The project leverages the expertise of the WU Legal Tech Center for validation of the topic modeling results, ensuring the reliable interpretation of legal and regulatory content within the analyzed communications.
+This interdisciplinary project analyzes the European Central Bank's communication strategy through the lens of both legal technology and data science. Building on preparatory work completed during the "Fachseminar Legal Tech" at the WU Vienna, the project represents a collaboration with the WU Legal Tech Center. It employs state-of-the-art natural language processing techniques, specifically the BERTopic model, to analyze temporal patterns and thematic evolution in ECB's communication across different channels, with a particular focus on climate change and environmental concerns. The project combines advanced topic modeling with time series analysis to provide insights that bridge the gap between quantitative analysis of central bank communication and legal research. By analyzing both traditional press releases and blog articles, this research aims to contribute to the understanding of how the ECB's communication evolves across different platforms and time periods. The findings will serve as a valuable resource for ongoing legal research, particularly in relation to EU regulation commentary. The project leverages the expertise of the WU Legal Tech Center for validation of the topic modeling results, ensuring the reliable interpretation of legal and regulatory content within the analyzed communications. All code and documentation for this project can be found in the GitHub repository at `https://github.com/Habenzu/ECB_Topic_Chronicles.git`. 
 
 ## Motivation and Research Question
 
@@ -42,11 +42,13 @@ The proposed project aims to expand upon this existing research by incorporating
 
 2. How has the prominence of climate change and environmental concerns evolved in ECB's communication over time? Can we identify structural breaks in this topic's distribution that indicate shifts in its relevance?
 
-The findings from this project will serve as a supplementary resource for a follow-up to the "Schwarze" commentary on EU regulation.
+The findings from this project will serve as a supplementary resource for the revised edition of the Articles on Monetary Union in the so-called “Schwarze” commentary on the EU Treaties.
 
 ## Methodological Approach
 
 This project comprises two main analytical components. The first component focuses on applying topic modeling to a dataset of ECB press releases and blog articles using BERTopic, an advanced topic modeling technique. BERTopic leverages transformer-based language models like BERT to generate document embeddings, subsequently applies dimensionality reduction to create manageable representations, clusters these reduced embeddings into dense groups, and finally employs c-TFIDF to identify significant terms [@GROOTENDORST2022]. Unlike traditional LDA approaches that rely on BoW or TF-IDF text representations, BERTopic's use of pre-trained BERT embeddings enables it to capture both semantic relationships between words and their contextual usage [@KUO2023]. This approach is expected to yield more accurate topic assignments per document, thereby creating a more reliable dataset for the second project component.
+
+To establish a comprehensive understanding of topic modeling performance in the context of central bank communications, this project will include a systematic comparison between BERTopic and traditional Latent Dirichlet Allocation (LDA). While previous studies such as @KAMINSKAS2024 and @FORTES2021 have primarily relied on LDA-based approaches, the relative performance of these methods specifically for ECB communications has not been thoroughly evaluated. Our comparison will assess both qualitative aspects (topic coherence, interpretability, and alignment with domain expertise) and quantitative metrics (coherence scores, silhouette scores for clustering quality, and computational efficiency). 
 
 To enhance the model's performance, we will explore fine-tuning the embedding model within the BERTopic pipeline using our collected ECB communication data, aiming to better capture domain-specific semantic nuances. The quality of topic modeling will be validated through two approaches: manual verification by teaching assistants at the WU Legal Tech Center, and automated verification using a large language model.
 
@@ -59,5 +61,6 @@ The second component focuses on analyzing the temporal distribution of the ident
 * ECB - European Central Bank
 * LDA - Latent Dirichlet Allocation
 * TF-IDF - Term Frequency and Inverse Document Frequency
+* LDA - Latent Dirichlet Allocation
 
 ## References
