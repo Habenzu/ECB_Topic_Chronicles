@@ -15,11 +15,8 @@ import sys
 import gensim
 import nltk
 import spacy
-import nltk
-from typing import List, Tuple, Union, Dict
-import os
+from typing import List, Tuple
 import pickle
-from datetime import datetime
 
 FILE_DIR = Path(__file__).resolve().parent
 SCRIPT_NAME = Path(__file__).name
