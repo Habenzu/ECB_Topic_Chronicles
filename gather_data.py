@@ -48,6 +48,17 @@ class Metadata:
         self.metadata_df["what_type_long"] = self.metadata_df["what_type"].apply(
             lambda x: self.what_type_dict[x]
         )
+    
+    def get(self, speech_id:int) -> tuple: 
+        """
+        Returns the metadata for the given speech_id.
+        
+        Args:
+            speech_id (int): The speech ID.
+        Returns:
+            tuple: A tuple containing the metadata for the speech.
+        """
+        return self.metadata_df[self.metadata_df["speech_id"] == speech_id].iloc[0].to_dict()
 
 class DataDownloader:
     """
@@ -144,7 +155,8 @@ class Parser:
             "footnotes",
             "final hidden",
         ]
-        self.metadata_df = Metadata(metadata_file).metadata_df
+        self.metadata = Metadata(metadata_file)
+        logger.info(f"Initialized Parser with speeches_dir={self.speeches_dir}, out_path={self.out_path}")
 
     def extract_main_content_from_html(self, html_file_path:str|Path) -> dict:
         """
@@ -203,21 +215,27 @@ class Parser:
         """
         Processes all HTML files in the speeches directory and saves the extracted content as JSON.
         """
+        logger.info(f"Processing HTML files in {self.speeches_dir}")
         if self.out_path.exists():
             logger.info(f"File {self.out_path} already exists, skipping processing.")
             return None
 
         results = []
         html_files = list(Path(self.speeches_dir).rglob("*.html"))
-        for index, html_file in enumerate(
-            tqdm(html_files, desc="Processing HTML files"), start=1
-        ):
+        for index, html_file in enumerate(tqdm(html_files, desc="Processing HTML files"), start=1):
             speech_id, date, type_long = html_file.stem.split("_")
             speech_id = int(speech_id)
 
+            # Add metadata information to the results 
+            metadata_fields = self.metadata.get(speech_id)
+
             result = self.extract_main_content_from_html(html_file)
-            result["speech_id"] = speech_id
-            result["date"] = date
+            result["id"] = speech_id
+            result["date"] = str(metadata_fields.get("when_speech", None))
+            result["author"] = metadata_fields.get("who", None)
+            result["title"] = metadata_fields.get("what_title", None)
+            result["url"] = metadata_fields.get("what_weblink", None)
+            result['language'] = metadata_fields.get("what_language", None)
             result["type_long"] = type_long
             results.append(result)
 
@@ -233,16 +251,13 @@ class Parser:
                 for res in results:
                     f.write(json.dumps(res) + "\n")
             logger.info(f"Appended {len(results)} remaining records to {self.out_path}")
-
+        logger.info(f"Processed {len(html_files)} HTML files, saved to {self.out_path}")
 
 if __name__ == "__main__":
-    logger.info("Starting data gathering process")
-    logger.debug("Downloading data")
-    pass
-    # if not Path('data/speeches').is_dir() and len(list(Path('data/speeches').glob("*.html"))) >= 3800: 
-    #     data_downloader = DataDownloader(output_dir=FILE_DIR / 'data' / 'speeches')
-    #     data_downloader.download_data()
+    if not Path('data/speeches').is_dir() and len(list(Path('data/speeches').glob("*.html"))) >= 3800: 
+        data_downloader = DataDownloader(output_dir=FILE_DIR / 'data' / 'speeches')
+        data_downloader.download_data()
 
-    # parser = Parser()
-    # parser.process_directory()
-    # pass
+    parser = Parser()
+    parser.process_directory()
+    pass
