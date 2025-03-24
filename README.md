@@ -5,13 +5,33 @@ conda environment: dsa
 
 **Data:** 
 - "data/all_ECB_speeches.csv": https://www.ecb.europa.eu/press/key/html/downloads.en.html
-- "data/export_datamart.csv":  https://www.kaggle.com/datasets/robertolofaro/ecb-speeches-1997-to-20191122-frequencies-dm/data
+  - `date`
+  - `speakers`
+  - `title`
+  - `subtitle`
+  - `contents` 
+- "data/export_datamart.csv": https://www.kaggle.com/datasets/robertolofaro/ecb-speeches-1997-to-20191122-frequencies-dm/data
+  - `speech_id`
+  - `when_speech`
+  - `who`
+  - `what_title`
+  - `what_frequencies`
+  - `what_language`
+  - `what_weblink`
   - `what_type`:
     - S: speech
     - I: interview
     - P: press_conference
     - B: blog_post
     - E: podcast
+- "data/speeches/parsed.jsonl": Took url from `export_datamart.csv`, downloaded and parsed the html: 
+  - `content`
+  - `related_topics`
+  - `speech_id`
+  - `date`
+  - `type_long`
+
+
 
 
 ## Approach 
