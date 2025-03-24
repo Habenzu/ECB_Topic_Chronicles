@@ -12,6 +12,14 @@ from tqdm import tqdm
 import json
 from loguru import logger
 import sys
+import gensim
+import nltk
+import spacy
+import nltk
+from typing import List, Tuple, Union, Dict
+import os
+import pickle
+from datetime import datetime
 
 FILE_DIR = Path(__file__).resolve().parent
 SCRIPT_NAME = Path(__file__).name
@@ -24,7 +32,7 @@ class Metadata:
     Handles the loading and preprocessing of metadata from a CSV file.
     """
     def __init__(self, path_to_file: str|Path = r"data\export_datamart.csv") -> None:
-        self.path_to_file = Path(path_to_file) if isinstance(path_to_file, str) else path_to_file
+        self.path_to_file = Path(path_to_file)
         self.metadata_df = pd.read_csv(self.path_to_file)
         self._prepare_metadata()
 
@@ -65,7 +73,7 @@ class DataDownloader:
     Downloads the speeches/documents from the url from the metadata and saves it to some directory.
     """
     def __init__(self, output_dir: str|Path =FILE_DIR / "data" / "speeches", metadata_file: str|Path = r"data\export_datamart.csv") -> None:
-        self.output_dir = Path(output_dir) if isinstance(output_dir, str) else output_dir
+        self.output_dir = Path(output_dir)
         self.metadata_df = Metadata(metadata_file).metadata_df
         if not self.output_dir.exists():
             self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -137,8 +145,8 @@ class Parser:
             out_path (Path): Path for the parsed JSON output.
             metadata_file (Path): Path to metadata file.
         """
-        self.speeches_dir = Path(speeches_dir) if isinstance(speeches_dir, str) else speeches_dir
-        self.out_path = Path(out_path) if isinstance(out_path, str) else out_path
+        self.speeches_dir = Path(speeches_dir)
+        self.out_path = Path(out_path)
         self.classes_to_remove = [
             "ecb-publicationDate",
             "ecb-authors",
@@ -253,11 +261,141 @@ class Parser:
             logger.info(f"Appended {len(results)} remaining records to {self.out_path}")
         logger.info(f"Processed {len(html_files)} HTML files, saved to {self.out_path}")
 
-if __name__ == "__main__":
-    if not Path('data/speeches').is_dir() and len(list(Path('data/speeches').glob("*.html"))) >= 3800: 
-        data_downloader = DataDownloader(output_dir=FILE_DIR / 'data' / 'speeches')
-        data_downloader.download_data()
+class Preprocessor: 
+    def __init__(self, language: str = "english", spacy_model: str = "en_core_web_sm"):
+        self.language = language
+        self.spacy_nlp = spacy.load(spacy_model, disable=["ner", "parser"])
 
-    parser = Parser()
-    parser.process_directory()
+    def set_stopwords(self, source="spacy", additional_stopwords: List[str]|Path|str = []):
+            if source == "spacy":
+                logger.info("Using spaCy stopwords.")
+                self.stopwords = set(self.spacy_nlp.Defaults.stop_words)
+            elif source == "nltk":
+                logger.info("Using NLTK stopwords.")
+                self.stopwords = set(nltk.corpus.stopwords.words("english"))
+            elif source == "both":
+                logger.info("Using spaCy and NLTK stopwords.")
+                self.stopwords = set(self.spacy_nlp.Defaults.stop_words).union(set(nltk.corpus.stopwords.words("english")))
+            else:
+                raise ValueError("Invalid source. Choose from 'spacy', 'nltk', 'both'")
+
+            if additional_stopwords:
+                if isinstance(additional_stopwords, (Path, str)):
+                    stopword_path = Path(additional_stopwords)
+                    additional_stopwords = stopword_path.read_text().splitlines()
+                self.stopwords = self.stopwords.union(set(additional_stopwords))
+                logger.info(f"Added {len(additional_stopwords)} additional stopwords.")
+            logger.info(f"Total stopwords: {len(self.stopwords)}")
+
+    def tokenize(self, text: str) -> List[str]: 
+        return [x for x in gensim.utils.tokenize(text, lower=True)]
+    
+    def remove_stopwords(self, tokens: List[str]) -> List[str]:
+        return [x for x in tokens if x not in self.stopwords]
+
+    def lemmatize(self, tokens: List[str]) -> List[str]:
+        wnl = nltk.stem.WordNetLemmatizer()
+        return [wnl.lemmatize(x) for x in tokens]
+
+    def preprocess_document(self, text:str) -> List[str]: 
+        text = text.lower()
+        tokens = self.tokenize(text)
+        tokens = self.remove_stopwords(tokens)
+        tokens = self.lemmatize(tokens)
+        return tokens
+    
+    def preprocess_dataset(self, parsed:Path|str|pd.DataFrame, output_dir:Path|str, save = True) -> None:
+        if isinstance(parsed, pd.DataFrame):
+            logger.info("Preprocessing DataFrame.")
+            parsed_df = parsed
+        else: 
+            logger.info(f"Preprocessing dataset from {parsed}")
+            parsed = Path(parsed)
+            parsed_df = pd.read_json(parsed, lines=True)
+        
+        output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        parsed_df["tokens"] = parsed_df["content"].apply(self.preprocess_document)
+        self.processed_documents = parsed
+        
+        if save:
+            parsed_df.to_json(output_dir/"preprocessed_data.jsonl", lines=True, orient="records")
+            logger.info(f"Preprocessed dataset saved to {output_dir}/preprocessed_data.jsonl")
+
+    def build_dictionary_and_corpus(self, output_dir:Path|str, save = True) -> None: 
+        if not hasattr(self, "processed_documents"):
+            raise ValueError("No preprocessed documents found. Run preprocess_dataset() first.")
+        
+        logger.info("Building dictionary and corpus.")
+        output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        self.dictionary = gensim.corpora.Dictionary(self.processed_documents["tokens"])
+        self.bow_corpus = [self.dictionary.doc2bow(doc) for doc in self.processed_documents["tokens"]]
+        tfidf_model = gensim.models.TfidfModel(self.bow_corpus)
+        self.tfidf_corpus = tfidf_model[self.bow_corpus]
+
+        if save: 
+            self.dictionary.save(str(output_dir / "dictionary"))
+            with open(output_dir / "bow_corpus.pkl", "wb") as f:
+                pickle.dump(self.bow_corpus, f)
+            with open(output_dir / "tfidf_corpus.pkl", "wb") as f:
+                pickle.dump(self.tfidf_corpus, f)
+            logger.info(f"Dictionary, BoW and TF-IDF corpus built and saved to {output_dir}.")
+
+    def load_df_dict_corpus(self,preprocessed_out_dir:Path|str) -> Tuple[pd.DataFrame, gensim.corpora.Dictionary, List[List[Tuple[int, int]]], gensim.interfaces.TransformedCorpus]:
+        preprocessed_out_dir = Path(preprocessed_out_dir)
+        preprocessed_data = pd.read_json(preprocessed_out_dir / "preprocessed_data.jsonl", lines=True)
+        dictionary = gensim.corpora.Dictionary.load(str(preprocessed_out_dir / "dictionary"))
+        with open(preprocessed_out_dir / "bow_corpus.pkl", "rb") as f:
+            bow_corpus = pickle.load(f)
+        with open(preprocessed_out_dir / "tfidf_corpus.pkl", "rb") as f:
+            tfidf_corpus = pickle.load(f)
+        return preprocessed_data, dictionary, bow_corpus, tfidf_corpus
+
+if __name__ == "__main__":
+    # Configurations
+    paths = {
+        "metadata": Path(r"data\export_datamart.csv"),
+        "all_speeches": Path(r"data\all_ECB_speeches.csv"),
+        "html_dir": Path(r"data\speeches"),
+        "parsed_file": Path(r"data\speeches\parsed.jsonl"),
+        "preprocessed_dir": Path(r"data\preprocessed_en"),
+    }
+
+    logger.info("Starting data gathering process.")
+    logger.info(f"Paths: {paths}")
+
+    # Check and download speeches if necessary
+    if not paths["html_dir"].is_dir() or len(list(paths["html_dir"].glob("*.html"))) < 3800:
+        logger.info("Downloading speeches: directory missing or insufficient files.")
+        DataDownloader(output_dir=paths["html_dir"]).download_data()
+
+    # Check and parse speeches if necessary
+    if not paths["parsed_file"].is_file():
+        logger.info("Parsed output file missing. Starting parsing process.")
+        Parser().process_directory()
+    else:
+        logger.info("Parsed output file exists. Validating content.")
+        nrows, ncols = pd.read_json(paths["parsed_file"], lines=True).shape
+        if nrows < 3800 or ncols != 9:
+            logger.info("Parsed output file incomplete. Re-parsing required.")
+            Parser().process_directory()
+        else:
+            logger.info("Parsed output file is complete.")
+    
+    # Preprocess the parsed JSON file # TODO: Include other languages if necessary
+    logger.info("Preprocessing parsed JSON file.")
+    nltk.download("stopwords")
+    nltk.download("wordnet")
+    nltk.download("omw-1.4")
+
+    preprocessor = Preprocessor(language="english", spacy_model="en_core_web_sm")
+    preprocessor.set_stopwords("both")
+    # Removing non english documents from the dataset
+    en_parsed = pd.read_json(paths["parsed_file"], lines=True)
+    en_parsed = en_parsed[en_parsed["language"] == "EN"]
+    preprocessor.preprocess_dataset(en_parsed, paths['preprocessed_dir'])
+    preprocessor.build_dictionary_and_corpus(paths['preprocessed_dir'])
     pass
