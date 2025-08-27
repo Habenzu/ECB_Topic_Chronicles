@@ -1,16 +1,18 @@
-import polars as pl
+import sys
 from pathlib import Path
+sys.path.append(Path(__file__).parent.parent.as_posix()) # path to root of project
 from loguru import logger
+import pickle
+import numpy as np
+import polars as pl
+from sklearn.feature_extraction.text import CountVectorizer
 from bertopic import BERTopic
 from umap import UMAP
 from hdbscan import HDBSCAN
-from sklearn.feature_extraction.text import CountVectorizer
 from bertopic.vectorizers import ClassTfidfTransformer
-import numpy as np
-from utils import StopwordCollector
-from evaluation import topic_quality
+from src.utils import StopwordCollector
+from src.evaluation import topic_quality
 from collections import defaultdict
-import pickle
 
 FILE_DIR = Path(__file__).parent
 
@@ -110,6 +112,8 @@ class BERTopicPipeline():
         self.docs = self.data_long['chunks'].to_list()
         self.embeddings = self._get_embeddings()
         self.topics, self.probs = self.topic_model.fit_transform(self.docs, self.embeddings)
+        _ = self.assign_topic_per_doc()
+        _ = self.evaluate_topic_quality()
 
     def evaluate_topic_quality(self, docs:list=None, embeddings:list=None, top_n_words = 10): 
         """
@@ -132,11 +136,15 @@ class BERTopicPipeline():
         else: 
             embeddings = embeddings
 
-        return {self.embedding_model_name: topic_quality(
+        quality = topic_quality(
             model = self.topic_model, 
             documents = docs,
             embeddings = embeddings,
-            top_n_words=top_n_words)}
+            top_n_words=top_n_words)
+        self.topic_quality_per_cluster = quality.pop('per_cluster')
+        self.topic_quality_all = quality 
+        logger.info('Evaulated the topic quality and assigned to self.topic_qualtiy.')
+        return [self.topic_quality_all, self.topic_quality_per_cluster]
 
     def assign_topic_per_doc(self, doc_ids: list = None, topics: list = None, probs: list = None): 
         """
@@ -192,6 +200,7 @@ class BERTopicPipeline():
             logger.warning("dominant_topic column already exists in data, overwriting it with new values.")
             self.data = self.data.drop("dominant_topic")
             self.data = self.data.join(res, left_on="id",right_on = 'id', how="left")
+        logger.info('Assigned 1 topic per document.')
         return res
     
     def save(self, model_dir: str):

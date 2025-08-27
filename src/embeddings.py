@@ -1,4 +1,10 @@
-import os, time, tiktoken
+import sys
+from pathlib import Path
+sys.path.append(Path(__file__).parent.parent.as_posix()) # path to root of project
+
+import os
+import time
+import tiktoken
 from collections import deque
 from typing import List, Iterable
 from openai import OpenAI

@@ -1,6 +1,8 @@
-from collections import Counter
-from typing import Any, Dict, List, Optional
+import sys
+from pathlib import Path
+sys.path.append(Path(__file__).parent.parent.as_posix()) # path to root of project
 
+from typing import Any, Dict, List, Optional
 import numpy as np
 from gensim.corpora import Dictionary
 from gensim.models.coherencemodel import CoherenceModel
@@ -10,7 +12,6 @@ from sklearn.metrics import (
     silhouette_samples,)
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.preprocessing import normalize
-
 
 def topic_quality(
     model,

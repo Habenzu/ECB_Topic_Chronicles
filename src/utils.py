@@ -1,3 +1,7 @@
+import sys
+from pathlib import Path
+sys.path.append(Path(__file__).parent.parent.as_posix()) # path to root of project
+
 import nltk
 import spacy
 from collections import Counter
@@ -10,7 +14,8 @@ import numpy as np
 from math import ceil
 import plotly.graph_objs as go
 from plotly.subplots import make_subplots
-import string, html
+import string
+import html
 from matplotlib.colors import to_hex
 import polars as pl
 
@@ -523,7 +528,11 @@ def plot_topic_trends(
         ],
     )
 
-    for i, flag in enumerate(vis[initial_k - 1]):
-        fig.data[i].visible = flag
+    if topics_to_show is not None: 
+        for i, flag in enumerate(vis[len(topics_to_show) - 1]):
+            fig.data[i].visible = flag
+    else: 
+        for i, flag in enumerate(vis[initial_k - 1]):
+            fig.data[i].visible = flag
 
     return fig
