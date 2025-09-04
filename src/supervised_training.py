@@ -428,12 +428,11 @@ def train(
     if init_from_best is not None: 
         best_ckpt = os.path.join(out_dir, "best_model.pt")
         # Start with current model’s validation F1 as the baseline to beat
+        la_eval = (logit_adjust_vec if (use_logit_adjust and adjust_in_eval_only) else None)
         with torch.no_grad():
             start_val_probs, start_val_true = evaluate(
                 model, val_loader, device,
-                logit_adjust=(None if not (use_logit_adjust and adjust_in_eval_only) else torch.tensor(
-                    np.log(prevalence/(1.0 - prevalence)), dtype=torch.float, device=device
-                ) if (use_logit_adjust and (prevalence is not None)) else None),
+                logit_adjust=la_eval,
                 aggregate=(agg if use_chunking else None),
                 n_docs=(len(val_df) if use_chunking else None)
             )
@@ -449,6 +448,14 @@ def train(
             start_pred = (start_val_probs >= start_th).astype(int)
             best_micro = f1_score(start_val_true, start_pred, average="micro")
         logger.info(f"Starting from micro-F1={best_micro:.4f} (pre-training validation)")
+        # --- seed artifacts so test can run even without improvements ---
+        np.save(os.path.join(out_dir, "thresholds.npy"), start_th)
+        with open(os.path.join(out_dir, "backbone.json"), "w") as f:
+            json.dump({"backbone": backbone}, f)
+        if prevalence is not None:
+            np.save(os.path.join(out_dir, "prevalence.npy"), prevalence)
+        torch.save(model.state_dict(), best_ckpt)
+        # --- end seed ---
     else: 
         best_micro = -1.0
         best_ckpt = os.path.join(out_dir, "best_model.pt")
