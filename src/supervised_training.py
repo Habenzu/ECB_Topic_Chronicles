@@ -625,16 +625,15 @@ def predict(
             max_length=chunk_size,
             stride=chunk_stride,
             return_overflowing_tokens=True,
-            padding=False
-        )
-        n = len(enc["input_ids"])
-        if n == 0:
-            # empty fallback
+            padding="longest",        
+            return_tensors="pt",)
+
+        ids = enc["input_ids"].to(dev)
+        att = enc["attention_mask"].to(dev)
+
+        if ids.shape[0] == 0:
             probs_doc = np.zeros_like(th, dtype=np.float32)
         else:
-            # batched over chunks
-            ids = torch.tensor(enc["input_ids"], dtype=torch.long, device=dev)
-            att = torch.tensor(enc["attention_mask"], dtype=torch.long, device=dev)
             with torch.no_grad():
                 logits = model(ids, att)
                 if apply_logit_adjust and logit_adjust is not None:
@@ -715,7 +714,7 @@ if __name__ == '__main__':
 
         # Encoder & heads
         "backbone": "xlm-roberta-base",
-        "n_labels": 110,
+        "n_labels": 102,
         "dropout": 0.2,
         "mean_pool": True,
 
