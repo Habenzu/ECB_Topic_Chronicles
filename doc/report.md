@@ -5,7 +5,7 @@ author:
     - Paul von Hirschhausen (01453360)
     - az. Prof.in Dr.in Claudia Wutscher (Supervisor - WU Vienna)
     - Univ.Ass. Dr. Gábor Recski (Co-Supervisor - TU Vienna)
-date: "07.09.2025"
+date: "23.09.2025"
 bibliography: [resources/resources.bib]
 csl: resources/apa.csl
 geometry:
@@ -37,7 +37,7 @@ Prior work has analyzed the content of central-bank speeches, press conferences,
 
 Topic modeling offers a scalable way to quantify thematic structure in large, evolving text collections. However, purely unsupervised approaches can struggle with domain-faithful labeling and stable evaluation. This report therefore combines supervised and semi-supervised topic modeling with time-series change-point detection to (i) recover interpretable, policy-relevant themes and (ii) test for statistically significant shifts in climate-related communication.
 
-To translate this motivation into concrete steps, we set the following research objectives: first we construct a comprehensive corpus of ECB communication (press releases, blogs, speeches) with maximal temporal coverage and rich metadata, secondly we recover and validate topic structure using both unsupervised (BERTopic-style) and supervised (multilabel) methods, with an emphasis on policy-relevant labels such as climate/environment, third we quantify the temporal dynamics of climate-related communication and detect structural breaks using statistically principled change-point methods and fourth we compare modeling choices, compraing embedding backends, supervised versus unsupervised with post-hoc mapping, and validation-time threshold calibration, with respect to predictive performance and interpretability.
+To translate this motivation into concrete steps, we set the following research objectives: first we construct a comprehensive corpus of ECB communication (press releases, blogs, speeches) with maximal temporal coverage and rich metadata, secondly we recover and validate topic structure using both unsupervised (BERTopic-style) and supervised (multilabel) methods, with an emphasis on policy-relevant labels such as climate/environment, third we quantify the temporal dynamics of climate-related communication and detect structural breaks using statistically principled change-point methods and fourth we compare modeling choices, comparing embedding backends, supervised versus unsupervised with post-hoc mapping, and validation-time threshold calibration, with respect to predictive performance and interpretability.
 
 To make these aims precise, we address the following research questions: 
 
@@ -150,7 +150,7 @@ The process begins by embedding documents into latent vector spaces created by t
 
 Subsequently, BERTopic applies Uniform Manifold Approximation and Projection (UMAP) to reduce dimensionality while preserving local and global structures. UMAP constructs a nearest-neighbor graph in the original space and optimizes a low-dimensional embedding that maintains neighborhood relations. We set parameters to `n_neighbors=15`, `n_components=5`, `min_dist=0.0`, and `metric='cosine'` [@UMAP2020; @KUO2023].
 
-The reduced embeddings are then clustered using Hierarchical Density-Based Spatial Clustering of Applications with Noise (HDBSCAN), a density-based algorithm capable of identifying clusters of varying shapes and sizes without requiring a predefined number of clusters. We used `min_cluster_size=15` (`=5` for `text-embedding-3-large` to avoid overly small cluster counts), `min_samples=1`, `metric='cosine'`, `cluster_selection_method='eom'`, and `prediction_data=True` [@HDBSCAN2013; @KUO2023].
+The reduced embeddings are then clustered using Hierarchical Density-Based Spatial Clustering of Applications with Noise (HDBSCAN), a density-based algorithm capable of identifying clusters of varying shapes and sizes without requiring a predefined number of clusters. We used `min_cluster_size=15` (`=5` for `text-embedding-3-large` to avoid overly small cluster counts), `min_samples=1`, `metric='cosine'` and `cluster_selection_method='eom'`[@HDBSCAN2013; @KUO2023].
 
 While BERTopic typically generates topic representations after clustering, in our approach this step is retained but not essential, since we later map predicted unsupervised topic IDs to ground-truth topics via the validation set. Because documents were chunked to fit model context windows, multiple predictions per document are aggregated into histogram vectors:
 
@@ -207,13 +207,13 @@ CatBoost builds ensembles of symmetric trees sequentially, each correcting error
 
 The second supervised setup used a transformer-based architecture fine-tuned for multi-label classification with the `xlm-roberta-base` backbone, predicting 102 labels. Mean pooling was applied to token embeddings, with dropout 0.2 for regularization. Long documents were chunked into overlapping 512-token segments (stride 64), with predictions aggregated via maximum scores. Training ran for 8 epochs with batch size 8, learning rate 2e-5, weight decay 0.01, and linear warm-up over 6% of optimization steps.
 
-For multi-label classification, we used `BCEWithLogitsLoss`, combining sigmoid activation with binary cross-entropy in a stable formulation [@FALLAH2022]. This models label presence independently and allows robust probability estimation.
+For multi-label classification, we used `BCEWithLogitsLoss`, combining sigmoid activation with binary cross-entropy in a stable formulation [@FALLAH2022].
 
-### Evaluation of Topic Modelling Approaches
+## Evaluation of Topic Modelling Approaches
 
 To compare models, we report both per-document and per-label metrics. Example-based metrics (precision, recall, F1, Jaccard similarity) assess overlap between predicted and true label sets, with subset accuracy requiring exact matches. Hamming loss measures average label-wise errors. Micro-averaged metrics emphasize frequent labels, macro-averaged metrics treat all labels equally, and macro balanced accuracy accounts for imbalance. Weighted metrics balance the two extremes. Together, these provide a comprehensive view of model quality. Comparisons were conducted on the 15% test set (525 documents across 102 topics).
 
-### Change Point Detection
+## Change Point Detection
 
 After training and evaluation, the best-performing model was used to label the unlabeled dataset, expanding topic coverage. These predicted topics were then aggregated into temporal event data (counts and percentages at daily, weekly, or monthly intervals). Data were aligned by filling missing periods with zeros, ensuring continuity. Event timestamps were reconstructed by evenly distributing counts within intervals, enabling time-based change detection.
 
@@ -257,9 +257,9 @@ weighted-recall & 0.553 & 0.598 & 0.679 & 0.677 & \textbf{\cellcolor{green!20}{0
 \end{tabular}}
 \end{table}
 
-From these metrics, it is clear, and not surprising, that directly supervised modeling (rather than via an unsupervised pipeline) outperforms the unsupervised approach. Overall, the CatBoost model based on the `text-embedding-3-large` embeddings performs best on most metrics. A close second is the fine-tuned `xlm-roberta-base` model, which also performs strongly across many metrics; however, similar to `cb-text-embedding-3-large`, it exhibits comparatively low recall.
+From these metrics, it is clear, and not surprising, that directly supervised modeling outperforms the unsupervised approach. Overall, the CatBoost model based on the `text-embedding-3-large` embeddings performs best on most metrics. A close second is the fine-tuned `xlm-roberta-base` model, which also performs strongly across many metrics; however, similar to `cb-text-embedding-3-large`, it exhibits comparatively low recall.
 
-For the unsupervised BERTopic variants, the results highlight the importance of smaller chunks. Because we created chunks as large as possible, `text-embedding-3-large` produced relatively few chunks; combined with the fact that BERTopic does not intrinsically support multi-label topics, performance is lower than with embedding models that have a smaller context window.
+For the unsupervised BERTopic variants, the results emphasize the advantages of using smaller chunks. Since we created chunks as large as possible, the `text-embedding-3-large` model produced relatively few of them. Combined with the limitation that BERTopic does not natively support multi-label topics, this led to weaker performance compared to embedding models with smaller context windows. In practice, the more individual chunk-level predictions we can aggregate, the stronger the resulting multi-label performance becomes.
 
 We therefore conclude that the large embeddings from `text-embedding-3-large` (3072) carry substantial signal for predicting document topics. At the same time, the (two-times larger than 384) 768-dimensional embeddings of `all-mpnet-base-v2` are, based on this evaluation, not more informative than the 384-dimensional `all-MiniLM-L12-v2` embeddings.
 
@@ -303,7 +303,7 @@ In summary, topic prevalence evolves meaningfully over time. Some topics maintai
 
 We now investigate whether the distributional patterns observed above can be validated statistically. Specifically, we test for statistically significant changepoints and their timing.
 
-We model the sequence of publication times mentioning "Climate change" as a piecewise-constant Poisson process. Under the null hypothesis of a constant rate $\lambda$ (no changepoint), inter-arrival times are i.i.d. exponential and, conditional on the total observation window, the ordered arrivals behave like order statistics of a Uniform$(0,1)$ sample. Following @GALEANO2007, we test deviations from this null using a CUSUM-type statistic on the rescaled event times.
+We model the sequence of publication times mentioning "Climate change" as a piecewise-constant Poisson process. Under the null hypothesis of a constant rate $\lambda$ (no changepoint), we assume inter-arrival times are i.i.d. exponential and, conditional on the total observation window, the ordered arrivals behave like order statistics of a Uniform$(0,1)$ sample. Following @GALEANO2007, we test deviations from this null using a CUSUM-type statistic on the rescaled event times.
 
 Let $0 < T_1 < \dots < T_n = T$ denote arrival times (in days) since the first observed event (first publication on "Climate change"). Define rescaled times $U_i = T_i / T$ and CUSUM deviations
 $$
@@ -331,11 +331,11 @@ with $\text{RR}>1$ indicating an increase. For direction and magnitude, we test 
 
 The figure shows three statistically significant changepoints that split the series into four regimes: at index 7 (17 Oct 2019), index 44 (25 Jan 2021), and index 108 (08 Dec 2021). In the first three regimes, the estimated arrival rate of "Climate change" publications increases at each break ($\text{RR} > 1$), indicating progressively higher publication frequency. At the third changepoint (index 108), the rate ratio falls below 1, implying a significant decline in the publication rate relative to the preceding regime.
 
-![Piecewise rate (slope) fit on cumulative events for detected change points in climate related publications](a901eb62-32a8-448c-bca0-f637b6cc71ef.png)
+![Piecewise rate (slope) fit on cumulative events for detected change points in climate related publications](f83c3b74-d8ad-4c52-a723-d96d3ded49dc.png)
 
 # 6. Conclusion and Outlook
 
-This Interdisciplinary project we set out to measure what the ECB communicates with an emphasis on climate, and to identify when its focus shifts by integrating a custom data pipeline, topic labeling, and statistically principled change point detection. Across roughly 9.5 thousand publications that span speeches, blogs, and press material, supervised approaches yielded the most consistent and policy aligned topics. A CatBoost one versus rest classifier trained on text-embedding-3-large embeddings achieved the strongest overall performance across example based and label wise metrics, with a fine tuned XLM-RoBERTa close behind. Unsupervised BERTopic pipelines were informative but lagged on strict multi label criteria, reflecting the difficulty of aligning clusters to a fixed policy taxonomy. Per topic analyses further showed stable recognition of the Climate change label. Co occurrence patterns suggest that climate behaves as a cross cutting theme rather than forming a narrow cluster, which fits its diffusion across policy areas.
+This Interdisciplinary project we set out to measure what the ECB communicates with an emphasis on climate, and to identify when its focus shifts by integrating a custom data pipeline, topic labeling, and statistically principled change point detection. Across roughly 9.5 thousand publications that span speeches, blogs, and press material, supervised approaches yielded the most consistent and policy aligned topics. A CatBoost one versus rest classifier trained on text-embedding-3-large embeddings achieved the strongest overall performance across example based and label wise metrics, with a fine tuned XLM-RoBERTa close behind. Unsupervised BERTopic pipelines were informative but lagged on strict multi label criteria, reflecting the difficulty of aligning clusters to a fixed policy taxonomy. Per topic analyses further showed stable recognition of the Climate change label. Co-occurrence patterns suggest that climate behaves as a cross cutting theme rather than forming a narrow cluster, which fits its diffusion across policy areas.
 
 The temporal profile of climate related communication is clear. The first appearance in our corpus occurs in October 2018, followed by a rapid expansion that peaks around late Q1 2021 and then moderates. A CUSUM or Galeano style event time analysis isolates three statistically significant structural breaks dated 17 Oct 2019, 25 Jan 2021, and 08 Dec 2021. The first two breaks correspond to increases in the arrival rate of climate related publications, the third to a decrease relative to the immediately preceding regime. These dates should be read as descriptive markers in the communication record rather than as causal attributions.
 
