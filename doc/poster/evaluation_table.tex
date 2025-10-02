@@ -1,0 +1,30 @@
+\documentclass{article}
+\usepackage[table]{xcolor}
+\usepackage{fontspec}
+\setmainfont{Arial}
+\definecolor{linecolor}{HTML}{5a7576}
+\arrayrulecolor{linecolor}
+
+\begin{document}
+
+\begin{tabular}{|p{3.5cm}|p{7cm}|p{6cm}|}
+\hline
+\rowcolor{white}
+\textbf{Evaluation Dimension} & \textbf{Metrics / Methods} & \textbf{Purpose} \\
+\hline
+\textbf{Topic labeling (model comparison)} & 
+- Example-based: Precision, Recall, F1, Jaccard, Subset Accuracy \newline
+- Label-based: Macro / Micro / Weighted F1, Macro Balanced Accuracy, Hamming Loss \newline
+- Threshold tuning: per-label F1 optimization & 
+Assess predictive accuracy across 102 topics, handle imbalance, compare supervised vs. unsupervised pipelines \\
+\hline
+\textbf{Change-point detection (temporal analysis)} &
+- CUSUM statistic on rescaled event times \newline
+- Monte Carlo critical values (type I error control) \newline
+- Binary segmentation (multiple breaks) \newline
+- Effect size: Poisson rate ratios &
+Validate statistical significance of structural breaks in climate communication frequency \\
+\hline
+\end{tabular}
+
+\end{document}
